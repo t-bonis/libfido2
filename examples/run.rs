@@ -1,4 +1,5 @@
 use libfido2::*;
+use libfido2_sys::FIDO_DEBUG;
 use std::ffi::CString;
 
 // Source: https://github.com/Yubico/libfido2/blob/master/examples/cred.c
@@ -14,23 +15,30 @@ const USER_ID: [u8; 32] = [
 const USER_NAME: &'static str = "John Doe";
 const RELYING_PARTY_ID: &'static str = "localhost";
 const RELYING_PARTY_NAME: &'static str = "Oost West, Thuis Best";
+const PIN: &'static str = "6565";
+
+
 
 pub fn main() {
     // Prepare CStrings
     let relying_party_id = CString::new(RELYING_PARTY_ID).unwrap();
     let relying_party_name = CString::new(RELYING_PARTY_NAME).unwrap();
     let user_name = CString::new(USER_NAME).unwrap();
+    let pin = CString::new(PIN).unwrap();
 
     // Initialize library
     let fido = Fido::new(false);
-
     // Detect connected FIDO devices
-    let detected_devices = fido.detect_devices(1);
-    let info = detected_devices.iter().next().expect("No device found");
-    println!("Found device: {:#?}", info);
+    let detected_devices = fido.detect_devices(20);
+    println!("{}",detected_devices.len());
 
+    let mut info = detected_devices.iter();
+
+    let tmp_info = info.next().expect("msg");
+    println!("Found device: {:#?}", tmp_info);
+    
     // Open the first found device
-    let mut device = fido.new_device(info.path).expect("Unable to open device");
+    let mut device = fido.new_device(tmp_info.path).expect("Unable to open device");
     println!("Mode: {:?}", device.mode());
     println!("CTAPHID info: {:#?}", device.ctap_hid_info());
     println!(
@@ -53,7 +61,7 @@ pub fn main() {
                 &user_name,
             ))
             .unwrap(),
-            None,
+            Some(pin.as_c_str()),
         )
         .unwrap();
     assert!(credential.verify().is_ok());
@@ -70,7 +78,7 @@ pub fn main() {
                 &relying_party_id,
             ))
             .unwrap(),
-            None,
+            Some(pin.as_c_str()),
         )
         .unwrap();
     println!("Created assertion");
